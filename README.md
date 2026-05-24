@@ -4,10 +4,8 @@ A multi-warehouse inventory and order-fulfillment platform with **race-condition
 
 ---
 
-## Live Demo
-
-> Deploy to Vercel, then seed your DB and the URL becomes your live demo.
-
+## Live deployed website
+https://allo-eaba.vercel.app/
 ---
 
 ## Local Setup
