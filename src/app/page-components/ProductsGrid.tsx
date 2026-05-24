@@ -1,14 +1,38 @@
+import { prisma } from "@/lib/prisma";
+import { releaseExpiredReservations } from "@/lib/expiry";
 import { Product } from "@/types";
 import ProductCard from "./ProductCard";
 import { Package } from "lucide-react";
 
 async function getProducts(): Promise<Product[]> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-  const res = await fetch(`${baseUrl}/api/products`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
+  await releaseExpiredReservations();
+
+  const products = await prisma.product.findMany({
+    include: {
+      stock: {
+        include: { warehouse: true },
+        orderBy: { warehouse: { name: "asc" } },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    imageUrl: p.imageUrl,
+    price: p.price,
+    sku: p.sku,
+    stock: p.stock.map((s) => ({
+      warehouseId: s.warehouseId,
+      warehouseName: s.warehouse.name,
+      warehouseLocation: s.warehouse.location,
+      total: s.total,
+      reserved: s.reserved,
+      available: Math.max(0, s.total - s.reserved),
+    })),
+  }));
 }
 
 export default async function ProductsGrid() {

@@ -1,19 +1,26 @@
 import { notFound } from "next/navigation";
-import Header from "@/components/ui/header";
+import { prisma } from "@/lib/prisma";
 import CheckoutClient from "./CheckoutClient";
 import { Reservation } from "@/types";
 
 async function getReservation(id: string): Promise<Reservation | null> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-
-  const res = await fetch(`${baseUrl}/api/reservations/${id}`, {
-    cache: "no-store",
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
+      product: { select: { name: true, price: true, sku: true, imageUrl: true } },
+      warehouse: { select: { name: true, location: true } },
+    },
   });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error("Failed to load reservation");
-  return res.json();
+
+  if (!reservation) return null;
+
+  return {
+    ...reservation,
+    expiresAt:   reservation.expiresAt.toISOString(),
+    confirmedAt: reservation.confirmedAt?.toISOString() ?? null,
+    releasedAt:  reservation.releasedAt?.toISOString() ?? null,
+    createdAt:   reservation.createdAt.toISOString(),
+  };
 }
 
 export default async function CheckoutPage({
@@ -26,12 +33,5 @@ export default async function CheckoutPage({
 
   if (!reservation) notFound();
 
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <Header />
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <CheckoutClient reservation={reservation} />
-      </main>
-    </div>
-  );
+  return <CheckoutClient reservation={reservation} />;
 }
